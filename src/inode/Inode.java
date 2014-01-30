@@ -45,7 +45,7 @@ public class Inode {
 	public void writeToFile() {
 		PrintWriter writer = null;
 		try {
-			writer = new PrintWriter("inode", "UTF-8");
+			writer = new PrintWriter(rootPrefix + "/inode", "UTF-8");
 		} catch (FileNotFoundException e) {
 			// e.printStackTrace();
 			System.out.println("Inode file not found");
@@ -60,7 +60,7 @@ public class Inode {
 	}
 
 	public void readFromFile() throws IOException {
-		BufferedReader br = new BufferedReader(new FileReader("inode"));
+		BufferedReader br = new BufferedReader(new FileReader(rootPrefix + "/inode"));
 		try {
 			String line = br.readLine();
 			while (line != null) {

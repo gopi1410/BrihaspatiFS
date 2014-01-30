@@ -2,13 +2,16 @@ package main;
 
 import inode.Inode;
 
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.PrintWriter;
 import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -20,8 +23,6 @@ import java.util.Scanner;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
-import org.h2.util.IOUtils;
 
 import net.jxta.discovery.DiscoveryEvent;
 import net.jxta.discovery.DiscoveryListener;
@@ -50,6 +51,9 @@ import net.jxta.protocol.ModuleClassAdvertisement;
 import net.jxta.protocol.ModuleImplAdvertisement;
 import net.jxta.protocol.ModuleSpecAdvertisement;
 import net.jxta.protocol.PipeAdvertisement;
+
+import org.h2.util.IOUtils;
+
 import fileUpload.FileUpload;
 
 public class Peer implements DiscoveryListener, PipeMsgListener {
@@ -251,9 +255,43 @@ public class Peer implements DiscoveryListener, PipeMsgListener {
 		InputStream is = null;
 		OutputStream os = null;
 		try {
+			String fileInitPath = "Upload/Files/";
+			String[] dir_arr = filepath.split("/");
+			for (String dir : dir_arr) {
+				if (dir.trim().equals("")) {
+					continue;
+				}
+				// System.out.println(fileInitPath + dir + "/");
+
+				File tempFile = new File(fileInitPath + dir + "/inode");
+				if (tempFile.getParentFile().exists()) {
+					// directory exists
+				} else {
+					// directory and inode needs to be created
+					tempFile.getParentFile().mkdirs();
+					tempFile.createNewFile();
+					PrintWriter writer = new PrintWriter(
+							fileInitPath + "inode", "UTF-8");
+					writer.println(fileInitPath + dir + "/");
+					writer.close();
+				}
+				fileInitPath = fileInitPath + dir + "/";
+			}
+
 			is = new FileInputStream(source);
 			os = new FileOutputStream(dest);
 			IOUtils.copy(is, os);
+
+			// updating the inode of the last directory with the file
+			String lastInodePath = "Upload/Files" + filepath + "inode";
+			try {
+				PrintWriter out = new PrintWriter(new BufferedWriter(
+						new FileWriter(lastInodePath, true)));
+				out.println("Upload/Files" + filepath + file);
+				out.close();
+			} catch (IOException e) {
+
+			}
 		} catch (FileNotFoundException e) {
 			// TODO Auto-generated catch block
 			System.out.println("File not found");
@@ -386,20 +424,52 @@ public class Peer implements DiscoveryListener, PipeMsgListener {
 					MessageElement file = el;
 					if (file.getElementName() != null) {
 						try {
-							File tempFile = new File("Upload/Files" + filepath);
-							if (tempFile.mkdirs()) {
-								System.out
-										.println("New directory path created");
-							} else {
-								System.out.println("Directory creation failed");
+							String fileInitPath = "Upload/Files/";
+							String[] dir_arr = filepath.split("/");
+							for (String dir : dir_arr) {
+								if (dir.trim().equals("")) {
+									continue;
+								}
+								// System.out.println(fileInitPath + dir + "/");
+
+								File tempFile = new File(fileInitPath + dir
+										+ "/inode");
+								if (tempFile.getParentFile().exists()) {
+									// directory exists
+								} else {
+									// directory and inode needs to be created
+									tempFile.getParentFile().mkdirs();
+									tempFile.createNewFile();
+									PrintWriter writer = new PrintWriter(
+											fileInitPath + "inode", "UTF-8");
+									writer.println(fileInitPath + dir + "/");
+									writer.close();
+								}
+								fileInitPath = fileInitPath + dir + "/";
 							}
-							FileOutputStream out = new FileOutputStream(
+
+							FileOutputStream outFile = new FileOutputStream(
 									new File("Upload/Files" + filepath
 											+ filename));
 
-							file.sendToStream(out);
+							file.sendToStream(outFile);
 
-							updateInode(filepath, filename);
+							// updating the inode of the last directory with the
+							// file
+							String lastInodePath = "Upload/Files" + filepath
+									+ "inode";
+							try {
+								PrintWriter out = new PrintWriter(
+										new BufferedWriter(new FileWriter(
+												lastInodePath, true)));
+								out.println("Upload/Files" + filepath
+										+ filename);
+								out.close();
+							} catch (IOException e) {
+
+							}
+
+							// updateInode(filepath, filename);
 						} catch (IOException err) {
 							System.out.println(err);
 						}
