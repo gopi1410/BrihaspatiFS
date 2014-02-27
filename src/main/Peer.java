@@ -269,8 +269,9 @@ public class Peer implements DiscoveryListener, PipeMsgListener {
 						// directory and inode needs to be created
 						tempFile.getParentFile().mkdirs();
 						tempFile.createNewFile();
-						PrintWriter writer = new PrintWriter(fileInitPath
-								+ "inode", "UTF-8");
+						PrintWriter writer = new PrintWriter(
+								new BufferedWriter(new FileWriter(fileInitPath
+										+ "inode", true)));
 						writer.println(fileInitPath + dir + "/");
 						writer.close();
 					}
@@ -522,8 +523,14 @@ public class Peer implements DiscoveryListener, PipeMsgListener {
 									// directory and inode needs to be created
 									tempFile.getParentFile().mkdirs();
 									tempFile.createNewFile();
+									// APPEND to existing inode the
+									// directory/file path
+									// TODO: Check if inode entry already
+									// exists!
 									PrintWriter writer = new PrintWriter(
-											fileInitPath + "inode", "UTF-8");
+											new BufferedWriter(new FileWriter(
+													fileInitPath + "inode",
+													true)));
 									writer.println(fileInitPath + dir + "/");
 									writer.close();
 								}
