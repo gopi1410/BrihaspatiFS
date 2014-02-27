@@ -27,12 +27,12 @@ public class FileUpload {
 	private static PipeID unicast_id;
 
 	public FileUpload(PipeService pipe_service, PipeID unicast_id,
-			String filename, String filepath, String peer_id) {
+			String filename, String filepath, String localpath, String peer_id) {
 		FileUpload.pipe_service = pipe_service;
 		FileUpload.unicast_id = unicast_id;
 
 		Thread thread = new Thread(new UploadHandler(filename, filepath,
-				peer_id), "file upload thread");
+				localpath, peer_id), "file upload thread");
 		thread.start();
 	}
 
@@ -41,20 +41,22 @@ public class FileUpload {
 		private String filename;
 		private String filepath;
 		private String peer_id;
+		private String localpath;
 
-		UploadHandler(String filename, String filepath, String peer_id) {
+		UploadHandler(String filename, String filepath, String localpath,
+				String peer_id) {
 			this.filename = filename;
 			this.filepath = filepath;
+			this.localpath = localpath;
 			this.peer_id = peer_id;
 		}
 
 		@Override
 		public void run() {
-			// TODO Auto-generated method stub
-			uploadDocument(filename, peer_id);
+			uploadDocument();
 		}
 
-		public void uploadDocument(String filename, String peer_id) {
+		public void uploadDocument() {
 			System.out.println("Uploading file " + filename + " to peer "
 					+ peer_id);
 
@@ -62,7 +64,23 @@ public class FileUpload {
 			InputStreamMessageElement MyInputStreamMessageElement;
 
 			try {
-				in = new FileInputStream(new File(filename));
+				File source = null;
+				if (localpath != null) {
+					char c = localpath.charAt(0);
+					if (c != '/') {
+						localpath = '/' + localpath;
+					}
+					c = localpath.charAt(localpath.length() - 1);
+					if (c != '/') {
+						localpath = localpath + '/';
+					}
+
+					source = new File("Upload/Files" + localpath + filename);
+				} else {
+					source = new File(filename);
+				}
+
+				in = new FileInputStream(source);
 				MyInputStreamMessageElement = new InputStreamMessageElement(
 						"FILE", MimeMediaType.TEXT_DEFAULTENCODING, in, null);
 				Message MyMessage = new Message();

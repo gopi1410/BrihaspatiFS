@@ -15,6 +15,7 @@ import java.io.PrintWriter;
 import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -86,18 +87,15 @@ public class Peer implements DiscoveryListener, PipeMsgListener {
 		System.out.println("Peer Name: " + peer_name);
 
 		// This is what you will be looking for in Wireshark instead of an IP,
-		// hint: filter by "jxta"
+		// filter by "jxta"
 		peer_id = IDFactory.newPeerID(PeerGroupID.defaultNetPeerGroupID,
 				peer_name.getBytes());
+		System.out.println("Peer id: " + peer_id.toString());
 
 		// Here the local peer cache will be saved, if you have multiple peers
 		// this must be unique
 		conf = new File("." + System.getProperty("file.separator") + peer_name);
 
-		// Most documentation you will find use a deprecated network manager
-		// setup, use this one instead
-		// ADHOC is usually a good starting point, other alternatives include
-		// Edge and Rendezvous
 		try {
 			manager = new NetworkManager(NetworkManager.ConfigMode.ADHOC,
 					peer_name, conf.toURI());
@@ -117,7 +115,6 @@ public class Peer implements DiscoveryListener, PipeMsgListener {
 			configurator.setUseMulticast(true);
 			configurator.setPeerID(peer_id);
 		} catch (IOException e) {
-			// Never caught this one but let me know if you do =)
 			e.printStackTrace();
 		}
 	}
@@ -141,9 +138,6 @@ public class Peer implements DiscoveryListener, PipeMsgListener {
 	private ModuleSpecAdvertisement mdadv;
 
 	public void start() throws PeerGroupException, IOException {
-		// Launch the missiles, if you have logging on and see no exceptions
-		// after this is ran, then you probably have at least the jars setup
-		// correctly.
 		PeerGroup net_group = manager.startNetwork();
 
 		// Connect to our subgroup (all groups are subgroups of Netgroup)
@@ -163,12 +157,10 @@ public class Peer implements DiscoveryListener, PipeMsgListener {
 			System.err.println("Cannot start child peergroup");
 
 		// We will spice things up to a more interesting level by sending
-		// unicast and multicast messages
+		// unicast and multicast messages.
 		// In order to be able to do that we will create to listeners that will
-		// listen for
-		// unicast and multicast advertisements respectively. All messages will
-		// be handled by Hello in the
-		// pipeMsgEvent method.
+		// listen for unicast and multicast advertisements respectively.
+		// All messages will be handled by Hello in the pipeMsgEvent method.
 
 		unicast_id = IDFactory.newPipeID(subgroup.getPeerGroupID(),
 				unicast_name.getBytes());
@@ -243,65 +235,155 @@ public class Peer implements DiscoveryListener, PipeMsgListener {
 
 	Scanner user_input = new Scanner(System.in);
 
-	private void UploadFile() throws IOException {
+	private void UploadFileHandler() throws NoSuchAlgorithmException,
+			IOException {
 		System.out.println("Enter filename to be uploaded: ");
 		String file = user_input.next();
 		System.out.println("Enter path: ");
 		String filepath = user_input.next();
+		UploadFile(file, filepath, null, null);
+	}
 
-		// copy to local machine
-		File source = new File(file);
-		File dest = new File("Upload/Files" + filepath + file);
-		InputStream is = null;
-		OutputStream os = null;
-		try {
-			String fileInitPath = "Upload/Files/";
-			String[] dir_arr = filepath.split("/");
-			for (String dir : dir_arr) {
-				if (dir.trim().equals("")) {
-					continue;
-				}
-				// System.out.println(fileInitPath + dir + "/");
+	public void UploadFile(String file, String filepath, String localpath,
+			String peer_id) throws IOException, NoSuchAlgorithmException {
 
-				File tempFile = new File(fileInitPath + dir + "/inode");
-				if (tempFile.getParentFile().exists()) {
-					// directory exists
-				} else {
-					// directory and inode needs to be created
-					tempFile.getParentFile().mkdirs();
-					tempFile.createNewFile();
-					PrintWriter writer = new PrintWriter(
-							fileInitPath + "inode", "UTF-8");
-					writer.println(fileInitPath + dir + "/");
-					writer.close();
-				}
-				fileInitPath = fileInitPath + dir + "/";
-			}
-
-			is = new FileInputStream(source);
-			os = new FileOutputStream(dest);
-			IOUtils.copy(is, os);
-
-			// updating the inode of the last directory with the file
-			String lastInodePath = "Upload/Files" + filepath + "inode";
+		if (localpath == null) {
+			// copy file to local machine
+			File source = new File(file);
+			File dest = new File("Upload/Files" + filepath + file);
+			InputStream is = null;
+			OutputStream os = null;
 			try {
-				PrintWriter out = new PrintWriter(new BufferedWriter(
-						new FileWriter(lastInodePath, true)));
-				out.println("Upload/Files" + filepath + file);
-				out.close();
-			} catch (IOException e) {
+				String fileInitPath = "Upload/Files/";
+				String[] dir_arr = filepath.split("/");
+				for (String dir : dir_arr) {
+					if (dir.trim().equals("")) {
+						continue;
+					}
+					// System.out.println(fileInitPath + dir + "/");
 
+					File tempFile = new File(fileInitPath + dir + "/inode");
+					if (tempFile.getParentFile().exists()) {
+						// directory exists
+					} else {
+						// directory and inode needs to be created
+						tempFile.getParentFile().mkdirs();
+						tempFile.createNewFile();
+						PrintWriter writer = new PrintWriter(fileInitPath
+								+ "inode", "UTF-8");
+						writer.println(fileInitPath + dir + "/");
+						writer.close();
+					}
+					fileInitPath = fileInitPath + dir + "/";
+				}
+
+				is = new FileInputStream(source);
+				os = new FileOutputStream(dest);
+				IOUtils.copy(is, os);
+
+				// updating the inode of the last directory with the file
+				String lastInodePath = "Upload/Files" + filepath + "inode";
+				try {
+					PrintWriter out = new PrintWriter(new BufferedWriter(
+							new FileWriter(lastInodePath, true)));
+					out.println("Upload/Files" + filepath + file);
+					out.close();
+				} catch (IOException e) {
+
+				}
+			} catch (FileNotFoundException e) {
+				System.out.println("File not found");
+			} finally {
+				is.close();
+				os.close();
 			}
-		} catch (FileNotFoundException e) {
-			// TODO Auto-generated catch block
-			System.out.println("File not found");
-		} finally {
-			is.close();
-			os.close();
 		}
 
-		String peer_id_str = peer_ids.get(0);
-		new FileUpload(pipe_service, unicast_id, file, filepath, peer_id_str);
+		if (peer_id != null) {
+			new FileUpload(pipe_service, unicast_id, file, filepath, localpath,
+					peer_id);
+		} else {
+			// calculate peer id to be sent to using the hashing function
+			String filehash1 = Hashing.sha1(filepath + file + "1");
+			// String filehash2=Hashing.sha1(filepath+file+"2");
+			// String filehash3=Hashing.sha1(filepath+file+"3");
+			// String filehash4=Hashing.sha1(filepath+file+"4");
+			// String filehash5=Hashing.sha1(filepath+file+"5");
+			String peer_id_str1 = Hashing.bestMatch(peer_ids, filehash1);
+			// String peer_id_str2=Hashing.bestMatch(peer_ids, filehash2);
+			// String peer_id_str3=Hashing.bestMatch(peer_ids, filehash3);
+			// String peer_id_str4=Hashing.bestMatch(peer_ids, filehash4);
+			// String peer_id_str5=Hashing.bestMatch(peer_ids, filehash5);
+
+			System.out.println("Sending file to " + peer_id_str1);
+			new FileUpload(pipe_service, unicast_id, file, filepath, localpath,
+					peer_id_str1);
+			// new FileUpload(pipe_service, unicast_id, file, filepath,
+			// localpath, peer_id_str2);
+			// new FileUpload(pipe_service, unicast_id, file, filepath,
+			// localpath, peer_id_str3);
+			// new FileUpload(pipe_service, unicast_id, file, filepath,
+			// localpath, peer_id_str4);
+			// new FileUpload(pipe_service, unicast_id, file, filepath,
+			// localpath, peer_id_str5);
+		}
+	}
+
+	private void RequestFileHandler() throws NoSuchAlgorithmException {
+		System.out.println("Enter filename to be downloaded: ");
+		String file = user_input.next();
+		System.out.println("Enter path: ");
+		String filepath = user_input.next();
+		RequestFile(file, filepath);
+	}
+
+	public void RequestFile(String file, String filepath)
+			throws NoSuchAlgorithmException {
+
+		// calculate peer id to download the file from, using the hashing
+		// function
+		String filehash = Hashing.sha1(filepath + file + "1");
+		String peer_id = Hashing.bestMatch(peer_ids, filehash);
+
+		Message MyMessage = new Message();
+		MyMessage.addMessageElement(new StringMessageElement("CHECK",
+				"Download", null));
+		MyMessage.addMessageElement(new StringMessageElement("filename", file,
+				null));
+		MyMessage.addMessageElement(new StringMessageElement("filepath",
+				filepath, null));
+		MyMessage.addMessageElement(new StringMessageElement("peer",
+				this.peer_id.toString(), null));
+
+		PipeAdvertisement adv = Peer.get_advertisement(unicast_id, false);
+
+		Set<PeerID> ps = new HashSet<PeerID>();
+		try {
+			ps.add((PeerID) IDFactory.fromURI(new URI(peer_id)));
+		} catch (URISyntaxException e) {
+			// The JXTA peer ids need to be formatted as proper urns
+			e.printStackTrace();
+		}
+
+		// A pipe we can use to send messages with
+		OutputPipe sender = null;
+		System.out.println("Sending file download request to " + ps);
+		try {
+			sender = pipe_service.createOutputPipe(adv, ps, 10000);
+		} catch (IOException e) {
+			// Thrown if there was an error opening the connection,
+			// check firewall settings
+			System.out.println("Error opening connection");
+			e.printStackTrace();
+		}
+
+		try {
+			sender.send(MyMessage);
+		} catch (IOException e) {
+			// Check, firewall, settings.
+			e.printStackTrace();
+		}
+
 	}
 
 	public static PipeAdvertisement get_advertisement(PipeID id,
@@ -493,6 +575,14 @@ public class Peer implements DiscoveryListener, PipeMsgListener {
 						}
 						System.out.println("File download complete!!");
 					}
+				} else if (check.equalsIgnoreCase("Download")) {
+					System.out.println("File to be sent.");
+					String filename = msg.getMessageElement("filename")
+							.toString();
+					String filepath = msg.getMessageElement("filepath")
+							.toString();
+					String p_id = msg.getMessageElement("peer").toString();
+					UploadFile(filename, filepath, filepath, p_id);
 				} else if (check.equalsIgnoreCase("Msg")) {
 					byte[] msgBytes = msg.getMessageElement("Msg").getBytes(
 							true);
@@ -515,7 +605,7 @@ public class Peer implements DiscoveryListener, PipeMsgListener {
 	/**
 	 * We will not find anyone if we are not regularly looking
 	 */
-	private void fetch_advertisements() {
+	public void fetch_advertisements() {
 		new Thread("fetch advertisements thread") {
 			public void run() {
 				while (true) {
