@@ -1,17 +1,15 @@
 package main;
 
+import fileUpload.FileUpload;
 import inode.Inode;
 
-import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.io.PrintWriter;
 import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -55,17 +53,11 @@ import net.jxta.protocol.PipeAdvertisement;
 
 import org.h2.util.IOUtils;
 
-import fileUpload.FileUpload;
-
 public class Peer implements DiscoveryListener, PipeMsgListener {
 
 	// handle these exceptions
 	public static void main(String[] args) throws PeerGroupException,
 			IOException {
-
-		// JXTA logs a lot, you can configure it setting level here
-		Logger.getLogger("net.jxta").setLevel(Level.SEVERE);
-		// Logger.getLogger("net.jxta").setLevel(Level.ALL);
 
 		int port = 9000 + new Random().nextInt(100);
 
@@ -74,12 +66,16 @@ public class Peer implements DiscoveryListener, PipeMsgListener {
 		hello.fetch_advertisements();
 	}
 
-	private String peer_name;
-	private PeerID peer_id;
+	private static String peer_name;
+	private static PeerID peer_id;
 	private File conf;
 	private NetworkManager manager;
 
 	public Peer(int port) {
+		// JXTA logs a lot, you can configure it setting level here
+		Logger.getLogger("net.jxta").setLevel(Level.SEVERE);
+		// Logger.getLogger("net.jxta").setLevel(Level.ALL);
+
 		System.out.println("Port used: " + port);
 		// Add a random number to make it easier to identify by name, will also
 		// make sure the ID is unique
@@ -130,8 +126,8 @@ public class Peer implements DiscoveryListener, PipeMsgListener {
 	private static final String service_name = "And dont forget it like i did a million times";
 
 	private PeerGroup subgroup;
-	private PipeService pipe_service;
-	private PipeID unicast_id;
+	private static PipeService pipe_service;
+	private static PipeID unicast_id;
 	private PipeID multicast_id;
 	private PipeID service_id;
 	private DiscoveryService discovery;
@@ -269,11 +265,9 @@ public class Peer implements DiscoveryListener, PipeMsgListener {
 						// directory and inode needs to be created
 						tempFile.getParentFile().mkdirs();
 						tempFile.createNewFile();
-						PrintWriter writer = new PrintWriter(
-								new BufferedWriter(new FileWriter(fileInitPath
-										+ "inode", true)));
-						writer.println(fileInitPath + dir + "/");
-						writer.close();
+						Inode i1 = new Inode();
+						i1.writeToInode(fileInitPath + "inode", fileInitPath
+								+ dir + "/");
 					}
 					fileInitPath = fileInitPath + dir + "/";
 				}
@@ -284,14 +278,8 @@ public class Peer implements DiscoveryListener, PipeMsgListener {
 
 				// updating the inode of the last directory with the file
 				String lastInodePath = "Upload/Files" + filepath + "inode";
-				try {
-					PrintWriter out = new PrintWriter(new BufferedWriter(
-							new FileWriter(lastInodePath, true)));
-					out.println("Upload/Files" + filepath + file);
-					out.close();
-				} catch (IOException e) {
-
-				}
+				Inode i2 = new Inode();
+				i2.writeToInode(lastInodePath, "Upload/Files" + filepath + file);
 			} catch (FileNotFoundException e) {
 				System.out.println("File not found");
 			} finally {
@@ -301,8 +289,7 @@ public class Peer implements DiscoveryListener, PipeMsgListener {
 		}
 
 		if (peer_id != null) {
-			new FileUpload(pipe_service, unicast_id, file, filepath, localpath,
-					peer_id);
+			new FileUpload(file, filepath, localpath, peer_id);
 		} else {
 			// calculate peer id to be sent to using the hashing function
 			String filehash1 = Hashing.sha1(filepath + file + "1");
@@ -317,16 +304,11 @@ public class Peer implements DiscoveryListener, PipeMsgListener {
 			// String peer_id_str5=Hashing.bestMatch(peer_ids, filehash5);
 
 			System.out.println("Sending file to " + peer_id_str1);
-			new FileUpload(pipe_service, unicast_id, file, filepath, localpath,
-					peer_id_str1);
-			// new FileUpload(pipe_service, unicast_id, file, filepath,
-			// localpath, peer_id_str2);
-			// new FileUpload(pipe_service, unicast_id, file, filepath,
-			// localpath, peer_id_str3);
-			// new FileUpload(pipe_service, unicast_id, file, filepath,
-			// localpath, peer_id_str4);
-			// new FileUpload(pipe_service, unicast_id, file, filepath,
-			// localpath, peer_id_str5);
+			new FileUpload(file, filepath, localpath, peer_id_str1);
+			// new FileUpload(file, filepath, localpath, peer_id_str2);
+			// new FileUpload(file, filepath, localpath, peer_id_str3);
+			// new FileUpload(file, filepath, localpath, peer_id_str4);
+			// new FileUpload(file, filepath, localpath, peer_id_str5);
 		}
 	}
 
@@ -354,7 +336,7 @@ public class Peer implements DiscoveryListener, PipeMsgListener {
 		MyMessage.addMessageElement(new StringMessageElement("filepath",
 				filepath, null));
 		MyMessage.addMessageElement(new StringMessageElement("peer",
-				this.peer_id.toString(), null));
+				Peer.peer_id.toString(), null));
 
 		PipeAdvertisement adv = Peer.get_advertisement(unicast_id, false);
 
@@ -468,15 +450,6 @@ public class Peer implements DiscoveryListener, PipeMsgListener {
 		}
 	}
 
-	private void updateInode(String filepath, String filename)
-			throws IOException {
-
-		Inode inode = new Inode(pipe_service, unicast_id);
-		inode.addFile(filepath + filename);
-		inode.sendInode(peer_ids.get(0));
-
-	}
-
 	@Override
 	public void pipeMsgEvent(PipeMsgEvent event) {
 		// Someone is sending us a message!
@@ -523,16 +496,11 @@ public class Peer implements DiscoveryListener, PipeMsgListener {
 									// directory and inode needs to be created
 									tempFile.getParentFile().mkdirs();
 									tempFile.createNewFile();
-									// APPEND to existing inode the
-									// directory/file path
+									Inode i1 = new Inode();
+									i1.writeToInode(fileInitPath + "inode",
+											fileInitPath + dir + "/");
 									// TODO: Check if inode entry already
 									// exists!
-									PrintWriter writer = new PrintWriter(
-											new BufferedWriter(new FileWriter(
-													fileInitPath + "inode",
-													true)));
-									writer.println(fileInitPath + dir + "/");
-									writer.close();
 								}
 								fileInitPath = fileInitPath + dir + "/";
 							}
@@ -547,18 +515,10 @@ public class Peer implements DiscoveryListener, PipeMsgListener {
 							// file
 							String lastInodePath = "Upload/Files" + filepath
 									+ "inode";
-							try {
-								PrintWriter out = new PrintWriter(
-										new BufferedWriter(new FileWriter(
-												lastInodePath, true)));
-								out.println("Upload/Files" + filepath
-										+ filename);
-								out.close();
-							} catch (IOException e) {
-
-							}
-
-							// updateInode(filepath, filename);
+							Inode i2 = new Inode();
+							i2.writeToInode(lastInodePath, "Upload/Files"
+									+ filepath + filename);
+							// TODO Send the inode to its peer
 						} catch (IOException err) {
 							System.out.println(err);
 						}
@@ -604,14 +564,12 @@ public class Peer implements DiscoveryListener, PipeMsgListener {
 				e.printStackTrace();
 			}
 		} catch (Exception e) {
-			// You will notice that JXTA is not very specific with exceptions...
+			// JXTA is not very specific with exceptions.
 			e.printStackTrace();
 		}
 	}
 
-	/**
-	 * We will not find anyone if we are not regularly looking
-	 */
+	// We will not find anyone if we are not regularly looking
 	public void fetch_advertisements() {
 		new Thread("fetch advertisements thread") {
 			public void run() {
@@ -628,4 +586,21 @@ public class Peer implements DiscoveryListener, PipeMsgListener {
 			}
 		}.start();
 	}
+
+	public static String getPeer_name() {
+		return peer_name;
+	}
+
+	public static PeerID getPeer_id() {
+		return peer_id;
+	}
+
+	public static PipeService getPipe_service() {
+		return pipe_service;
+	}
+
+	public static PipeID getUnicast_id() {
+		return unicast_id;
+	}
+
 }

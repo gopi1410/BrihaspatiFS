@@ -1,13 +1,14 @@
 package inode;
 
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
@@ -30,51 +31,55 @@ import net.jxta.protocol.PipeAdvertisement;
 public class Inode {
 
 	public final String rootPrefix = "Upload/Files";
-	private List<String> DirInodes = new ArrayList<String>();
 
 	private PipeService pipe_service;
 	private PipeID unicast_id;
 
-	public Inode(PipeService pipe_service, PipeID unicast_id)
-			throws IOException {
-		this.pipe_service = pipe_service;
-		this.unicast_id = unicast_id;
-		readFromFile();
+	public Inode() throws IOException {
+		this.pipe_service = Peer.getPipe_service();
+		this.unicast_id = Peer.getUnicast_id();
 	}
 
-	public void writeToFile() {
-		PrintWriter writer = null;
-		try {
-			writer = new PrintWriter(rootPrefix + "/inode", "UTF-8");
-		} catch (FileNotFoundException e) {
-			// e.printStackTrace();
-			System.out.println("Inode file not found");
-		} catch (UnsupportedEncodingException e) {
-			System.out.println("Unsupported inode file encoding");
-			e.printStackTrace();
-		}
-		for (String s : DirInodes) {
-			writer.println(s);
-		}
+	// APPENDS a file path to an inode file
+	public void writeToInode(String inodeFile, String path) throws IOException {
+		PrintWriter writer = new PrintWriter(new BufferedWriter(new FileWriter(
+				inodeFile, true)));
+		writer.println(path);
 		writer.close();
 	}
 
-	public void readFromFile() throws IOException {
-		BufferedReader br = new BufferedReader(new FileReader(rootPrefix + "/inode"));
+	public String readFromInode(String inodeFile) throws IOException {
+		StringBuilder list = new StringBuilder();
+		String text = null;
 		try {
-			String line = br.readLine();
-			while (line != null) {
-				DirInodes.add(line);
-				line = br.readLine();
+			BufferedReader reader = new BufferedReader(
+					new FileReader(inodeFile));
+			String line = null;
+			while ((line = reader.readLine()) != null) {
+				list.append(line + "\n");
 			}
-		} finally {
-			br.close();
+			reader.close();
+			text = list.toString();
+		} catch (FileNotFoundException e) {
+			// TODO Request inode file and then execute the function again
+			text = "Error: inode file not found in " + inodeFile;
+			e.printStackTrace();
 		}
+		return text;
 	}
 
-	public boolean searchFile(String filename) throws IOException {
+	public boolean searchFile(String inodeFile, String filename)
+			throws IOException {
 		boolean present = false;
-		readFromFile();
+		List<String> DirInodes = new ArrayList<String>();
+
+		BufferedReader br = new BufferedReader(new FileReader(inodeFile));
+		String line = br.readLine();
+		while (line != null) {
+			DirInodes.add(line);
+			line = br.readLine();
+		}
+		br.close();
 
 		for (String s : DirInodes) {
 			if (s.endsWith(filename)) {
@@ -86,13 +91,30 @@ public class Inode {
 		return present;
 	}
 
-	public void addFile(String pathname) throws IOException {
-		// readFromFile();
-		if (!DirInodes.contains(rootPrefix + pathname)) {
-			DirInodes.add(rootPrefix + pathname);
-		}
-		writeToFile();
-	}
+	// public void writeToFile() {
+	// PrintWriter writer = null;
+	// try {
+	// writer = new PrintWriter(rootPrefix + "/inode", "UTF-8");
+	// } catch (FileNotFoundException e) {
+	// // e.printStackTrace();
+	// System.out.println("Inode file not found");
+	// } catch (UnsupportedEncodingException e) {
+	// System.out.println("Unsupported inode file encoding");
+	// e.printStackTrace();
+	// }
+	// for (String s : DirInodes) {
+	// writer.println(s);
+	// }
+	// writer.close();
+	// }
+
+	// public void addFile(String pathname) throws IOException {
+	// // readFromFile();
+	// if (!DirInodes.contains(rootPrefix + pathname)) {
+	// DirInodes.add(rootPrefix + pathname);
+	// }
+	// writeToFile();
+	// }
 
 	public void sendInode(String peer_id) {
 

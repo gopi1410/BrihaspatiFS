@@ -26,10 +26,10 @@ public class FileUpload {
 	private static PipeService pipe_service;
 	private static PipeID unicast_id;
 
-	public FileUpload(PipeService pipe_service, PipeID unicast_id,
-			String filename, String filepath, String localpath, String peer_id) {
-		FileUpload.pipe_service = pipe_service;
-		FileUpload.unicast_id = unicast_id;
+	public FileUpload(String filename, String filepath, String localpath,
+			String peer_id) {
+		FileUpload.pipe_service = Peer.getPipe_service();
+		FileUpload.unicast_id = Peer.getUnicast_id();
 
 		Thread thread = new Thread(new UploadHandler(filename, filepath,
 				localpath, peer_id), "file upload thread");
