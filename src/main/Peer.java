@@ -13,7 +13,6 @@ import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -71,6 +70,26 @@ public class Peer implements DiscoveryListener, PipeMsgListener {
 	private File conf;
 	private NetworkManager manager;
 
+	private static final String subgroup_name = "Make sure this is spelled the same everywhere";
+	private static final String subgroup_desc = "...";
+	private static final PeerGroupID subgroup_id = IDFactory.newPeerGroupID(
+			PeerGroupID.defaultNetPeerGroupID, subgroup_name.getBytes());
+
+	private static final String unicast_name = "This must be spelled the same too";
+	private static final String multicast_name = "Or else you will get the wrong PipeID";
+	private static final String service_name = "And dont forget it like i did a million times";
+
+	private PeerGroup subgroup;
+	private static PipeService pipe_service;
+	private static PipeID unicast_id;
+	private PipeID multicast_id;
+	private PipeID service_id;
+	private DiscoveryService discovery;
+	private ModuleSpecAdvertisement mdadv;
+
+	private static List<String> peer_ids = new ArrayList<String>();
+	public static boolean FileReceivedCheck = false;
+
 	public Peer(int port) {
 		// JXTA logs a lot, you can configure it setting level here
 		Logger.getLogger("net.jxta").setLevel(Level.SEVERE);
@@ -114,24 +133,6 @@ public class Peer implements DiscoveryListener, PipeMsgListener {
 			e.printStackTrace();
 		}
 	}
-
-	private static final String subgroup_name = "Make sure this is spelled the same everywhere";
-	private static final String subgroup_desc = "...";
-	private static final PeerGroupID subgroup_id = IDFactory.newPeerGroupID(
-			PeerGroupID.defaultNetPeerGroupID, subgroup_name.getBytes());
-
-	private static final String unicast_name = "This must be spelled the same too";
-	private static final String multicast_name = "Or else you will get the wrong PipeID";
-
-	private static final String service_name = "And dont forget it like i did a million times";
-
-	private PeerGroup subgroup;
-	private static PipeService pipe_service;
-	private static PipeID unicast_id;
-	private PipeID multicast_id;
-	private PipeID service_id;
-	private DiscoveryService discovery;
-	private ModuleSpecAdvertisement mdadv;
 
 	public void start() throws PeerGroupException, IOException {
 		PeerGroup net_group = manager.startNetwork();
@@ -231,8 +232,7 @@ public class Peer implements DiscoveryListener, PipeMsgListener {
 
 	Scanner user_input = new Scanner(System.in);
 
-	private void UploadFileHandler() throws NoSuchAlgorithmException,
-			IOException {
+	private void UploadFileHandler() throws IOException {
 		System.out.println("Enter filename to be uploaded: ");
 		String file = user_input.next();
 		System.out.println("Enter path: ");
@@ -241,7 +241,7 @@ public class Peer implements DiscoveryListener, PipeMsgListener {
 	}
 
 	public void UploadFile(String file, String filepath, String localpath,
-			String peer_id) throws IOException, NoSuchAlgorithmException {
+			String peer_id) throws IOException {
 
 		if (localpath == null) {
 			// copy file to local machine
@@ -312,7 +312,7 @@ public class Peer implements DiscoveryListener, PipeMsgListener {
 		}
 	}
 
-	private void RequestFileHandler() throws NoSuchAlgorithmException {
+	private void RequestFileHandler() {
 		System.out.println("Enter filename to be downloaded: ");
 		String file = user_input.next();
 		System.out.println("Enter path: ");
@@ -320,8 +320,7 @@ public class Peer implements DiscoveryListener, PipeMsgListener {
 		RequestFile(file, filepath);
 	}
 
-	public void RequestFile(String file, String filepath)
-			throws NoSuchAlgorithmException {
+	public void RequestFile(String file, String filepath) {
 
 		// calculate peer id to download the file from, using the hashing
 		// function
@@ -382,8 +381,6 @@ public class Peer implements DiscoveryListener, PipeMsgListener {
 		adv.setDescription("does not really matter");
 		return adv;
 	}
-
-	private List<String> peer_ids = new ArrayList<String>();
 
 	@Override
 	public void discoveryEvent(DiscoveryEvent event) {
@@ -480,66 +477,53 @@ public class Peer implements DiscoveryListener, PipeMsgListener {
 					MessageElement file = el;
 					if (file.getElementName() != null) {
 						try {
-							String fileInitPath = "Upload/Files/";
-							String[] dir_arr = filepath.split("/");
-							for (String dir : dir_arr) {
-								if (dir.trim().equals("")) {
-									continue;
-								}
-								// System.out.println(fileInitPath + dir + "/");
+							if (!filename.equals("inode")) {
+								String fileInitPath = "Upload/Files/";
+								String[] dir_arr = filepath.split("/");
+								for (String dir : dir_arr) {
+									if (dir.trim().equals("")) {
+										continue;
+									}
+									// System.out.println(fileInitPath + dir +
+									// "/");
 
-								File tempFile = new File(fileInitPath + dir
-										+ "/inode");
-								if (tempFile.getParentFile().exists()) {
-									// directory exists
-								} else {
-									// directory and inode needs to be created
-									tempFile.getParentFile().mkdirs();
-									tempFile.createNewFile();
-									Inode i1 = new Inode();
-									i1.writeToInode(fileInitPath + "inode",
-											fileInitPath + dir + "/");
-									// TODO: Check if inode entry already
-									// exists!
+									File tempFile = new File(fileInitPath + dir
+											+ "/inode");
+									if (tempFile.getParentFile().exists()) {
+										// directory exists
+									} else {
+										// directory and inode needs to be
+										// created
+										tempFile.getParentFile().mkdirs();
+										tempFile.createNewFile();
+										Inode i1 = new Inode();
+										i1.writeToInode(fileInitPath + "inode",
+												fileInitPath + dir + "/");
+										// TODO: Check if inode entry already
+										// exists!
+									}
+									fileInitPath = fileInitPath + dir + "/";
 								}
-								fileInitPath = fileInitPath + dir + "/";
 							}
 
 							FileOutputStream outFile = new FileOutputStream(
 									new File("Upload/Files" + filepath
 											+ filename));
-
 							file.sendToStream(outFile);
 
-							// updating the inode of the last directory with the
-							// file
-							String lastInodePath = "Upload/Files" + filepath
-									+ "inode";
-							Inode i2 = new Inode();
-							i2.writeToInode(lastInodePath, "Upload/Files"
-									+ filepath + filename);
-							// TODO Send the inode to its peer
+							if (!filename.equals("inode")) {
+								// update inode of last directory with the file
+								String lastInodePath = "Upload/Files"
+										+ filepath + "inode";
+								Inode i2 = new Inode();
+								i2.writeToInode(lastInodePath, "Upload/Files"
+										+ filepath + filename);
+								i2.sendInode(filepath + "inode");
+							}
 						} catch (IOException err) {
 							System.out.println(err);
 						}
-						System.out.println("File download complete!!");
-					}
-				} else if (check.equalsIgnoreCase("InodeFile")) {
-					System.out.println("Inode File received.");
-					ElementIterator it = msg.getMessageElements();
-					MessageElement el = null;
-					while (it.hasNext()) {
-						el = it.next();
-					}
-					MessageElement file = el;
-					if (file.getElementName() != null) {
-						try {
-							FileOutputStream out = new FileOutputStream(
-									new File("inode"));
-							file.sendToStream(out);
-						} catch (IOException err) {
-							System.out.println(err);
-						}
+						setFileReceivedCheck(true);
 						System.out.println("File download complete!!");
 					}
 				} else if (check.equalsIgnoreCase("Download")) {
@@ -601,6 +585,18 @@ public class Peer implements DiscoveryListener, PipeMsgListener {
 
 	public static PipeID getUnicast_id() {
 		return unicast_id;
+	}
+
+	public static List<String> getPeer_ids() {
+		return peer_ids;
+	}
+
+	public static boolean getFileReceivedCheck() {
+		return Peer.FileReceivedCheck;
+	}
+
+	public static void setFileReceivedCheck(boolean fileReceivedCheck) {
+		Peer.FileReceivedCheck = fileReceivedCheck;
 	}
 
 }

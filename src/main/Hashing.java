@@ -19,8 +19,14 @@ public class Hashing {
 	// System.out.println(bestMatch(singleAddress, sha1("lol")));
 	// }
 
-	public static String sha1(String input) throws NoSuchAlgorithmException {
-		MessageDigest mDigest = MessageDigest.getInstance("SHA1");
+	public static String sha1(String input) {
+		MessageDigest mDigest = null;
+		try {
+			mDigest = MessageDigest.getInstance("SHA1");
+		} catch (NoSuchAlgorithmException e) {
+			System.out.println("SHA1 algorithm exception: No Such Algorithm");
+			e.printStackTrace();
+		}
 		byte[] result = mDigest.digest(input.getBytes());
 		StringBuffer hash = new StringBuffer();
 		for (int i = 0; i < result.length; i++) {
@@ -32,8 +38,7 @@ public class Hashing {
 		// return sb.length() + "x";
 	}
 
-	public static String bestMatch(List<String> peer_ids, String hash)
-			throws NoSuchAlgorithmException {
+	public static String bestMatch(List<String> peer_ids, String hash) {
 		String best = null;
 		int min = 10, idx = 0;
 		int size = peer_ids.size();

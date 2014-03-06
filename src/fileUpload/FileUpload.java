@@ -120,7 +120,7 @@ public class FileUpload {
 				try {
 					sender.send(MyMessage);
 				} catch (IOException e) {
-					// Check, firewall, settings.
+					// Check firewall settings.
 					e.printStackTrace();
 				}
 

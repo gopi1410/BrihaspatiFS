@@ -4,8 +4,12 @@ import inode.Inode;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Random;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import main.Peer;
+import net.jxta.exception.PeerGroupException;
 
 public class functions {
 
@@ -27,19 +31,37 @@ public class functions {
 		return isMatch;
 	}
 
-	public String ls() throws IOException {
+	public String ls() throws IOException, InterruptedException {
 		String pwd = getPWD();
 		String inodePath = "Upload/Files" + pwd + "inode";
 
-		// TODO Request the inode file first
-
+		// Request the inode file first
+		Peer.setFileReceivedCheck(false);
 		Inode i = new Inode();
+		i.requestInode(pwd + "inode");
+
+		// Call ls on inode file after inode file is received
+		Object o = new Object();
+		synchronized (o) {
+			Peer.getFileReceivedCheck();
+		}
+		Thread.sleep(500); // Required if inode file is missing.
+
+		// fileCheck = Peer.getFileReceivedCheck();
+		// System.out.println(fileCheck);
+
+		// System.out.println(fileCheck);
+		// while (fileCheck == false) {
+		// Thread.sleep(10);
+		// fileCheck = Peer.getFileReceivedCheck();
+		// }
+		// System.out.println(fileCheck);
+
 		return i.readFromInode(inodePath);
 	}
 
 	public void cd(String path) {
 		// TODO Inode operations
-		// TODO handle .. (if necessary)
 
 		String pwd = getPWD();
 		String newPath = null;
@@ -101,21 +123,68 @@ public class functions {
 					+ newPath);
 
 			// Send inode to its peer
-			// TODO ^this
+			i.sendInode(pwd + "inode");
 		}
 	}
 
-	public void rm(String file) {
-		
+	public void rm(String file) throws IOException, InterruptedException {
+		String pwd = getPWD();
+
+		// TODO Check for absolute file path
+		// OR sub directories as/test.test/txt
+
+		// get inode of parent folder
+		String inodePath = "Upload/Files" + pwd + "inode";
+		String filePath = "Upload/Files" + pwd + file;
+		Peer.setFileReceivedCheck(false);
+		Inode i = new Inode();
+		i.requestInode(pwd + "inode");
+
+		// Further operations after inode file is received
+		Object o = new Object();
+		synchronized (o) {
+			Peer.getFileReceivedCheck();
+		}
+		Thread.sleep(500); // Required if inode file is missing.
+
+		// Check if file present or not
+		boolean fileCheck = i.searchFile(inodePath, filePath);
+		if (fileCheck == false) {
+			System.out.println("No such file");
+			return;
+		}
+
+		// If yes, delete the inode entry; else error deleting
+		i.removeFromInode(inodePath, filePath);
+
+		// delete file locally
+		File f = new File(filePath);
+		if (f.delete()) {
+			System.out.println("File deleted successfully");
+		} else {
+			System.out.println("Delete operation failed");
+		}
+
+		// Send inode to its peer
+		i.sendInode(pwd + "inode");
 	}
 
-	public static void main(String[] args) throws IOException {
+	public static void main(String[] args) throws IOException,
+			PeerGroupException, InterruptedException {
+
+		int port = 9000 + new Random().nextInt(100);
+		Peer hello = new Peer(port);
+		hello.start();
+		hello.fetch_advertisements();
+		Thread.sleep(5000);
+
 		functions f = new functions();
 		f.setPWD("/acads/gopi/");
 		System.out.println(f.ls());
-		f.cd("check");
-		System.out.println(f.getPWD());
-		System.out.println(f.ls());
+		// f.cd("check");
+		// System.out.println(f.getPWD());
+		// f.rm("1.txt");
+		// System.out.println(f.ls());
 		// f.mkdir("testing/");
 	}
 
