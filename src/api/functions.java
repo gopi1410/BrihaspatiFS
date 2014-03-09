@@ -13,6 +13,17 @@ import net.jxta.exception.PeerGroupException;
 
 public class functions {
 
+	Peer hello;
+
+	public functions() throws PeerGroupException, IOException,
+			InterruptedException {
+		int port = 9000 + new Random().nextInt(100);
+		hello = new Peer(port);
+		hello.start();
+		hello.fetch_advertisements();
+		Thread.sleep(5000);
+	}
+
 	private String PWD;
 
 	public String getPWD() {
@@ -169,14 +180,16 @@ public class functions {
 		i.sendInode(pwd + "inode");
 	}
 
+	public void ltor(String fname, String fpath) throws IOException {
+		hello.UploadFile(fname, fpath, null, null);
+	}
+
+	public void rtol(String fname, String fpath) {
+		hello.RequestFile(fname, fpath);
+	}
+
 	public static void main(String[] args) throws IOException,
 			PeerGroupException, InterruptedException {
-
-		int port = 9000 + new Random().nextInt(100);
-		Peer hello = new Peer(port);
-		hello.start();
-		hello.fetch_advertisements();
-		Thread.sleep(5000);
 
 		functions f = new functions();
 		f.setPWD("/acads/gopi/");
