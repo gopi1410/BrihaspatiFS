@@ -66,7 +66,7 @@ public class GUI implements MouseListener, ActionListener, WindowListener {
 		this.f.add(this.rtolt2);
 		this.f.add(this.text);
 
-		this.f.getContentPane().setBackground(Color.GREEN);
+		this.f.getContentPane().setBackground(new Color(51, 117, 153));
 		this.f.setLayout(null);
 		this.f.setVisible(true);
 		this.f.setSize(800, 600);
