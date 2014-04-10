@@ -13,6 +13,11 @@ import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.security.InvalidKeyException;
+import java.security.KeyPair;
+import java.security.NoSuchAlgorithmException;
+import java.security.PrivateKey;
+import java.security.PublicKey;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -21,6 +26,10 @@ import java.util.Scanner;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import javax.crypto.BadPaddingException;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
 
 import net.jxta.discovery.DiscoveryEvent;
 import net.jxta.discovery.DiscoveryListener;
@@ -57,12 +66,56 @@ public class Peer implements DiscoveryListener, PipeMsgListener {
 	// handle these exceptions
 	public static void main(String[] args) throws PeerGroupException,
 			IOException {
-
+		
+		//TODO temporarily commented mainloop
+		/*
 		int port = 9000 + new Random().nextInt(100);
 
 		Peer hello = new Peer(port);
 		hello.start();
-		hello.fetch_advertisements();
+		hello.fetch_advertisements();*/
+		
+		
+		//TODO RSA Demo
+		try {
+			KeyPair kp = Security.newRSAKeyPair(1<<10);
+			PublicKey pubKey = kp.getPublic();
+	        PrivateKey privKey = kp.getPrivate();
+	        String plainText = "Dear Bob,\nWish you were here.\n\t--Alice";
+	        byte[] cipherText = Security.encryptWithPubKey(plainText.getBytes("UTF-8"),pubKey);
+	        System.out.println("cipherText: "+Security.b2h(cipherText));
+	        System.out.println("plainText:");
+	        System.out.println(new String(Security.decryptWithPrivKey(cipherText,privKey),"UTF-8"));
+		} catch (NoSuchAlgorithmException e) {
+			// Auto-generated catch block
+			e.printStackTrace();
+		} catch (InvalidKeyException e) {
+			// Auto-generated catch block
+			e.printStackTrace();
+		} catch (IllegalBlockSizeException e) {
+			// Auto-generated catch block
+			e.printStackTrace();
+		} catch (BadPaddingException e) {
+			// Auto-generated catch block
+			e.printStackTrace();
+		} catch (NoSuchPaddingException e) {
+			// Auto-generated catch block
+			e.printStackTrace();
+		}
+		//TODO AES Demo
+		try {
+			String IV = "AAAAAAAAABBAAAAA";
+			String encryptionKey = "0123456789abcdef";
+			String plainText = "Dear Bob,\nWish you were here.\n\t--Alice";
+			byte[] cipherText = Security.encryptWithAES(plainText,encryptionKey,IV);
+			System.out.println("cipherText: "+Security.b2h(cipherText));
+        	System.out.println("plainText:");
+	        System.out.println(Security.decryptWithAES(cipherText,encryptionKey,IV));
+		} catch (Exception e) {
+			// Auto-generated catch block
+			e.printStackTrace();
+		}
+		
 	}
 
 	private static String peer_name;
